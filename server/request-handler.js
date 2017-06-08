@@ -11,8 +11,10 @@ this file and include it in basic-server.js so that it actually works.
 *Hint* Check out the node module documentation at http://nodejs.org/api/modules.html.
 
 **************************************************************/
-
+var results = require('./storage.js');
+const fs = require('fs');
 var requestHandler = function(request, response) {
+
   // Request and Response come from node's http module.
   //
   // They include information about both the incoming request, such as
@@ -39,7 +41,9 @@ var requestHandler = function(request, response) {
   //
   // You will need to change this if you are sending something
   // other than plain text, like JSON or HTML.
-  headers['Content-Type'] = 'text/plain';
+  headers['Content-Type'] = 'application/json';
+
+
 
   // .writeHead() writes to the request line and headers of the response,
   // which includes the status and all headers.
@@ -52,7 +56,29 @@ var requestHandler = function(request, response) {
   //
   // Calling .end "flushes" the response's internal buffer, forcing
   // node to actually send all the data over to the client.
-  response.end('Hello, World!');
+  if (request.method === 'POST' && request.url === '/classes/messages' || request.url === '/classes/room') {
+    response.writeHead(201, headers);
+    var body = '';
+    request.on('data', function(chunk) {
+      body = chunk;
+    });
+    // console.log(body);
+    results.data.results.push(body);
+    results.test.results.push(body);
+    //console.log(results.data.results);
+    // response.end(JSON.stringify([body]));
+    response.end(JSON.stringify(body));
+  } else if (request.method === 'GET' && request.url === '/classes/messages' || '/classes/room') {
+    // response.writeHead(200, headers);
+    // console.log(results.data);
+    console.log('i m', results.test.results);
+    response.end( JSON.stringify(results.data) );
+  } else {
+    response.writeHead(404, headers);
+    response.end()
+  }
+
+
 };
 
 // These headers will allow Cross-Origin Resource Sharing (CORS).
@@ -71,3 +97,30 @@ var defaultCorsHeaders = {
   'access-control-max-age': 10 // Seconds.
 };
 
+exports.requestHandler = requestHandler;
+
+
+
+/***********************************************/
+
+// fs.write(fd, data[, position[, encoding]], callback)
+// var http = require('http'),
+//     qs = require('querystring');
+
+// var server = http.createServer(function(req, res) {
+//   if (req.method === 'POST' && req.url === '/login') {
+//     var body = '';
+//     req.on('data', function(chunk) {
+//       body += chunk;
+//     });
+//     req.on('end', function() {
+//       var data = qs.parse(body);
+//       // now you can access `data.email` and `data.password`
+//       res.writeHead(200);
+//       res.end(JSON.stringify(data));
+//     });
+//   } else {
+//     res.writeHead(404);
+//     res.end();
+//   }
+// });
