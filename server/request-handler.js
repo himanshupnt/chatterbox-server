@@ -60,15 +60,20 @@ var requestHandler = function(request, response) {
     response.writeHead(201, headers);
     var body = '';
     request.on('data', function(chunk) {
-      body = chunk;
+      body += chunk;
+      results.data.results.push(JSON.parse(body));
+
     });
+    // request.on('end', function() {
+    //   results.data.results.push(JSON.parse(body));
+    // });
     // console.log(body);
-    results.data.results.push(body);
-    results.test.results.push(body);
+    // results.data.results.push(body);
+    // results.test.results.push(body);
     //console.log(results.data.results);
     // response.end(JSON.stringify([body]));
     response.end(JSON.stringify(body));
-  } else if (request.method === 'GET' && request.url === '/classes/messages' || '/classes/room') {
+  } else if (request.method === 'GET' && request.url === '/classes/messages' || request.url === '/classes/room') {
     // response.writeHead(200, headers);
     // console.log(results.data);
     console.log('i m', results.test.results);
