@@ -1,131 +1,69 @@
-/*************************************************************
 
-You should implement your request handler function in this file.
-
-requestHandler is already getting passed to http.createServer()
-in basic-server.js, but it won't work as is.
-
-You'll have to figure out a way to export this function from
-this file and include it in basic-server.js so that it actually works.
-
-*Hint* Check out the node module documentation at http://nodejs.org/api/modules.html.
-
-**************************************************************/
-var results = require('./storage.js');
-const fs = require('fs');
-var requestHandler = function(request, response) {
-
-  // Request and Response come from node's http module.
-  //
-  // They include information about both the incoming request, such as
-  // headers and URL, and about the outgoing response, such as its status
-  // and content.
-  //
-  // Documentation for both request and response can be found in the HTTP section at
-  // http://nodejs.org/documentation/api/
-
-  // Do some basic logging.
-  //
-  // Adding more logging to your server can be an easy way to get passive
-  // debugging help, but you should always be careful about leaving stray
-  // console.logs in your code.
-  console.log('Serving request type ' + request.method + ' for url ' + request.url);
-
-  // The outgoing status.
-  var statusCode = 200;
-
-  // See the note below about CORS headers.
-  var headers = defaultCorsHeaders;
-
-  // Tell the client we are sending them plain text.
-  //
-  // You will need to change this if you are sending something
-  // other than plain text, like JSON or HTML.
-  headers['Content-Type'] = 'application/json';
-
-
-
-  // .writeHead() writes to the request line and headers of the response,
-  // which includes the status and all headers.
-  response.writeHead(statusCode, headers);
-
-  // Make sure to always call response.end() - Node may not send
-  // anything back to the client until you do. The string you pass to
-  // response.end() will be the body of the response - i.e. what shows
-  // up in the browser.
-  //
-  // Calling .end "flushes" the response's internal buffer, forcing
-  // node to actually send all the data over to the client.
-  if (request.method === 'POST' && request.url === '/classes/messages' || request.url === '/classes/room') {
-    response.writeHead(201, headers);
-    var body = '';
-    request.on('data', function(chunk) {
-      body += chunk;
-      results.data.results.push(JSON.parse(body));
-
-    });
-    // request.on('end', function() {
-    //   results.data.results.push(JSON.parse(body));
-    // });
-    // console.log(body);
-    // results.data.results.push(body);
-    // results.test.results.push(body);
-    //console.log(results.data.results);
-    // response.end(JSON.stringify([body]));
-    response.end(JSON.stringify(body));
-  } else if (request.method === 'GET' && request.url === '/classes/messages' || request.url === '/classes/room') {
-    // response.writeHead(200, headers);
-    // console.log(results.data);
-    console.log('i m', results.test.results);
-    response.end( JSON.stringify(results.data) );
-  } else {
-    response.writeHead(404, headers);
-    response.end()
-  }
-
-
-};
-
-// These headers will allow Cross-Origin Resource Sharing (CORS).
-// This code allows this server to talk to websites that
-// are on different domains, for instance, your chat client.
-//
-// Your chat client is running from a url like file://your/chat/client/index.html,
-// which is considered a different domain.
-//
-// Another way to get around this restriction is to serve you chat
-// client from this domain by setting up static file serving.
-var defaultCorsHeaders = {
+var headers = {
   'access-control-allow-origin': '*',
   'access-control-allow-methods': 'GET, POST, PUT, DELETE, OPTIONS',
   'access-control-allow-headers': 'content-type, accept',
-  'access-control-max-age': 10 // Seconds.
+  'access-control-max-age': 10, // Seconds.
+  'Content-Type': 'application/json'
 };
 
-exports.requestHandler = requestHandler;
+var chatData = require('./storage.js');
 
+var responseHandler = function (response, data, statusCode) {
+  statusCode = statusCode || 200;
+  response.writeHead(statusCode, headers);
+  response.end( JSON.stringify(data) );
+}
 
+var postReqDataHandler = function (request, callback) {
+  var body = '';
+  request.on('data', function(chunk) {
+    body += chunk;
 
-/***********************************************/
+  });
 
-// fs.write(fd, data[, position[, encoding]], callback)
-// var http = require('http'),
-//     qs = require('querystring');
+  request.on('end', function(){
+    // console.log('Starting body');
+    // console.log(body);
+    // console.log('done body');
+    callback( JSON.parse(body) );
+  })
+}
+// var objectId = 1;.
+var requests = {
+  'GET': function (request, response) {
+    responseHandler(response, chatData.chats);
+  },
+  'POST': function (request, response) {
+    postReqDataHandler(request, function(chat) {
+      chat.objectId = ++chatData.chats.objectId;
+      chat.createdAt = new Date();
+      chat.createdAt = (chat.createdAt).toJSON();
+      chatData.chats.results.push(chat);
+      responseHandler(response, {objectId: chat.objectId}, 201);
+    });
+  },
+  'OPTIONS': function (request, response) {
+    responseHandler(response, null);
+  }
+}
 
-// var server = http.createServer(function(req, res) {
-//   if (req.method === 'POST' && req.url === '/login') {
-//     var body = '';
-//     req.on('data', function(chunk) {
-//       body += chunk;
-//     });
-//     req.on('end', function() {
-//       var data = qs.parse(body);
-//       // now you can access `data.email` and `data.password`
-//       res.writeHead(200);
-//       res.end(JSON.stringify(data));
-//     });
-//   } else {
-//     res.writeHead(404);
-//     res.end();
-//   }
-// });
+var requestHandler = function (request, response) {
+
+  // console.log('Serving request type ' + request.method + ' for url ' + request.url);
+
+  var req = requests[request.method];
+
+  if ( req ) {
+    req(request, response);
+  } else {
+    responseHandler(response, 'O oh, not found here', 404);
+  }
+
+};
+
+module.exports = {
+  headers,
+  requestHandler,
+  responseHandler
+};
